@@ -1,0 +1,112 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+<div class="border rounded-lg overflow-hidden m-4 shadow-lg">
+  <!-- User and Room Setup -->
+  <div class="m-4">
+    <input type="text" id="usernameInput" placeholder="Enter Username" class="border border-gray-300 rounded p-2 mr-2">
+    <input type="text" id="roomInput" placeholder="Enter Room Name" class="border border-gray-300 rounded p-2 mr-2">
+    <button id="setupButton" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded">Join Room</button>
+  </div>
+  <div class="sticky top-0 z-50 border-b border-gray-300 bg-white py-5 px-8 text-left text-sm text-gray-800">
+    <h4 id="roomName" class="inline-block py-1 text-left font-sans font-semibold normal-case"></h4>
+  </div>
+  <div id="chat" class="flex-grow px-8 pt-8 text-left text-gray-700">
+    <!-- Chat messages will be displayed here -->
+  </div>
+  <div class="mt-4 flex items-start border-t border-gray-300 sm:p-8 py-4 text-left text-gray-700">
+    <textarea id="messageInput" cols="1" rows="1" placeholder="Your Message" class="mr-4 overflow-hidden w-full flex-1 cursor-text resize-none whitespace-pre-wrap rounded-md bg-white text-sm py-2 sm:py-0 font-normal text-gray-600 opacity-70 shadow-none outline-none focus:text-gray-600 focus:opacity-100"></textarea>
+    <button id="sendMessageButton" class="relative disabled:bg-indigo-300 inline-flex h-10 w-auto flex-initial cursor-pointer items-center justify-center self-center rounded-md bg-blue-700 px-6 text-center align-middle text-sm font-medium text-white outline-none focus:ring-2">Send Message</button>
+  </div>
+</div>
+
+<script>
+  let socket;
+  let username;
+  let room;
+
+  document.getElementById('setupButton').addEventListener('click', function() {
+    username = document.getElementById('usernameInput').value;
+    room = document.getElementById('roomInput').value;
+    document.getElementById('roomName').textContent = 'Room Name: ' + room;
+
+    if (!username || !room) {
+      alert('Please enter both a username and a room name.');
+      return;
+    }
+
+    // Initialize WebSocket connection
+    socket = new WebSocket('ws://localhost:3000/ws');
+
+    socket.onopen = function(e) {
+      console.log("Connection established");
+      const joinRoomMessage = JSON.stringify({ username, room, message: `${username} joined ${room}` });
+      socket.send(joinRoomMessage);
+    };
+
+    socket.onmessage = function(event) {
+      const data = JSON.parse(event.data);
+      receiveMessage(data.username, data.message);
+    };
+
+    socket.onerror = function(error) {
+      console.error("WebSocket Error: ", error);
+    };
+  });
+
+  document.getElementById('sendMessageButton').addEventListener('click', function() {
+    const messageInput = document.getElementById('messageInput');
+    const message = messageInput.value;
+    const messageObject = { username, room, message };
+    socket.send(JSON.stringify(messageObject));
+    messageInput.value = '';
+  });
+
+  function receiveMessage(sender, message) {
+    const chatArea = document.getElementById('chat');
+    const newMessageDiv = document.createElement('div');
+    newMessageDiv.className = 'relative mb-6 text-left';
+
+    if (message.includes('joined')){
+      // Message from joined user
+      newMessageDiv.innerHTML = `
+      <div class="text-gray-700">
+          <p class="text-sm w-full text-center">${message}</p>
+        </div>  
+      `;
+    }
+
+    if (sender === username && !message.toString().includes('joined')) {
+      // Message from current user
+      newMessageDiv.innerHTML = `
+        <div class="text-gray-700">
+          <div class="relative float-right mr-8 sm:mr-16 inline-block rounded-md bg-blue-700 py-3 px-4 text-white">
+            <p class="text-sm">${message}</p>
+          </div>
+        </div>
+        <div class="clear-both flex text-gray-700"></div>
+        `;
+    } else if(sender !== username && !message.toString().includes('joined')) {
+      // Message from another user
+      newMessageDiv.innerHTML = `
+        <div class="text-gray-700">
+          <div class="relative float-left ml-8 sm:ml-16 inline-block rounded-md bg-gray-200 py-3 px-4">
+            <span class="font-light mb-7 text-gray-400">${sender}</span>
+            <p class="text-sm">${message}</p>
+          </div>
+        </div>
+        <div class="clear-both flex text-gray-700"></div>
+        `;
+    }
+
+    chatArea.appendChild(newMessageDiv);
+    chatArea.scrollTop = chatArea.scrollHeight; 
+  }
+</script>
+</body>
+</html>

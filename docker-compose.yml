@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    restart: on-failure
+    ports:
+      - "3000:3000"
+    depends_on:
+      - redis
+      - db
+    environment:
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=${DB_HOST}
+      - DB_NAME=${DB_NAME}
+      - DB_PORT=${DB_PORT}
+      - RD_HOST=${RD_HOST}
+    networks:
+      - go-chat-net
+
+  redis:
+    image: redis:latest
+    command: redis-server --requirepass ${RD_PASSWORD}
+    ports:
+      - "6379:6379"
+    networks:
+      - go-chat-net
+
+  db:
+    image: postgres:latest
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - go-chat-net
+
+networks:
+  go-chat-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
